@@ -7,6 +7,7 @@ import { languageFeature } from '#root/bot/features/language.js'
 import { unhandledFeature } from '#root/bot/features/unhandled.js'
 import { welcomeFeature } from '#root/bot/features/welcome.js'
 import { teslaFeature } from '#root/bot/features/tesla.js'
+import { setupCronJob } from '#root/bot/features/cron.js'
 import { errorHandler } from '#root/bot/handlers/error.js'
 import { i18n, isMultipleLocales } from '#root/bot/i18n.js'
 import { session } from '#root/bot/middlewares/session.js'
@@ -70,6 +71,9 @@ export function createBot(token: string, dependencies: Dependencies, botConfig?:
 
   // must be the last handler
   protectedBot.use(unhandledFeature)
+
+  // Setup cron job
+  setupCronJob(bot)
 
   return bot
 }
