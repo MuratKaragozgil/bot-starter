@@ -136,34 +136,17 @@ function findChanges(oldVehicles: TeslaInventoryResponse['results'], newVehicles
 
 function isNewModelY(vehicle: TeslaInventoryResponse['results'][0]): boolean {
   try {
-    // Yeni model Y'lerin özellikleri:
-    // 1. Ambient lighting özelliği var
-    // 2. Rear screen özelliği var
-    // 3. Yeni jant tasarımları (19" Photon veya 20" Induction)
-    // 4. Yeni renk seçenekleri (Stealth Grey, Ultra Red)
-    
-    if (!vehicle?.OptionCodeData || !vehicle?.WHEELS || !vehicle?.PAINT) {
+    if (!vehicle?.OptionCodeData) {
       return false;
     }
     
-    const hasAmbientLighting = vehicle.OptionCodeData.some(opt => 
-      opt?.group === 'INTERIOR' && opt?.value?.includes('Ambient')
-    );
+    // Range değerini kontrol et
+    const range = vehicle.OptionCodeData.find(opt => opt?.group === 'SPECS_RANGE');
+    if (range && parseInt(range.value) >= 568) {
+      return true;
+    }
     
-    const hasRearScreen = vehicle.OptionCodeData.some(opt => 
-      opt?.group === 'INTERIOR' && opt?.value?.includes('Rear Screen')
-    );
-    
-    const hasNewWheels = vehicle.WHEELS.some(wheel => 
-      wheel?.includes('Photon') || wheel?.includes('Induction')
-    );
-    
-    const hasNewColors = vehicle.PAINT.some(color => 
-      color?.includes('Stealth Grey') || color?.includes('Ultra Red')
-    );
-    
-    // Eğer bu özelliklerden herhangi biri varsa, yeni modeldir
-    return hasAmbientLighting || hasRearScreen || hasNewWheels || hasNewColors;
+    return false;
   } catch (error) {
     logger.error('Error in isNewModelY:', error);
     return false;
