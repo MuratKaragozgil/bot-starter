@@ -69,6 +69,30 @@ async function setupCommands(bot: TelegramBot<Context>) {
   }
 }
 
+// Adminlere bot başlangıç bildirimi gönder
+async function sendStartupNotification(bot: TelegramBot<Context>, config: Config) {
+  try {
+    const startupTime = new Date().toLocaleString('tr-TR');
+    const message = [
+      '🚀 Bot Başlatıldı',
+      `⏰ Tarih: ${startupTime}`,
+      `📊 Mod: ${config.isDebug ? 'Debug' : 'Production'}`,
+      `🔄 Polling: ${config.isPollingMode ? 'Açık' : 'Kapalı'}`
+    ].join('\n');
+
+    for (const adminId of config.botAdmins) {
+      try {
+        await bot.api.sendMessage(adminId, message);
+        console.log(`✅ Startup notification sent to admin ${adminId}`);
+      } catch (error) {
+        console.error(`❌ Error sending startup notification to admin ${adminId}:`, error);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error in startup notification:', error);
+  }
+}
+
 export function createBot(token: string, dependencies: Dependencies, botConfig?: BotConfig<Context>) {
   const {
     config,
@@ -120,6 +144,9 @@ export function createBot(token: string, dependencies: Dependencies, botConfig?:
 
   // Setup bot commands
   setupCommands(bot)
+
+  // Send startup notification
+  sendStartupNotification(bot, config)
 
   return bot
 }
