@@ -12,6 +12,7 @@ import { errorHandler } from '#root/bot/handlers/error.js'
 import { i18n, isMultipleLocales } from '#root/bot/i18n.js'
 import { session } from '#root/bot/middlewares/session.js'
 import { updateLogger } from '#root/bot/middlewares/update-logger.js'
+import { newUserMiddleware } from '#root/bot/middleware/new-user.js'
 import { autoChatAction } from '@grammyjs/auto-chat-action'
 import { hydrate } from '@grammyjs/hydrate'
 import { hydrateReply, parseMode } from '@grammyjs/parse-mode'
@@ -61,6 +62,7 @@ export function createBot(token: string, dependencies: Dependencies, botConfig?:
     storage: new MemorySessionStorage(),
   }))
   protectedBot.use(i18n)
+  protectedBot.use(newUserMiddleware)
 
   // Handlers
   protectedBot.use(welcomeFeature)
