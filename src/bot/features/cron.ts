@@ -5,6 +5,7 @@ import { logger } from '#root/logger.js';
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
+import { sendRateLimitedMessage } from '#root/bot/utils/rate-limited-sender.js';
 
 interface TeslaInventoryResponse {
   results: Array<{
@@ -286,10 +287,11 @@ export function setupCronJob(bot: Bot<Context>) {
         vehicles: data.results
       });
 
-      await bot.api.sendMessage(ADMIN_ID, message, {
+      // Sadece admin'e değil, tüm üyelere bildirim gönder
+      await sendRateLimitedMessage(bot, message, {
         parse_mode: 'HTML',
         link_preview_options: {
-          is_disabled: true
+          is_disabled: true,
         }
       });
 
