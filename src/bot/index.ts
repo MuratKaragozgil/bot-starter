@@ -28,6 +28,47 @@ function getSessionKey(ctx: Omit<Context, 'session'>) {
   return ctx.chat?.id.toString()
 }
 
+// Bot komutlarını ayarla
+async function setupCommands(bot: TelegramBot<Context>) {
+  try {
+    await bot.api.setMyCommands([
+      {
+        command: 'start',
+        description: 'Botu başlat / Start the bot'
+      },
+      {
+        command: 'check',
+        description: 'Tesla envanterini kontrol et / Check Tesla inventory'
+      }
+    ], {
+      scope: {
+        type: 'all_private_chats'
+      },
+      language_code: 'tr'
+    });
+
+    await bot.api.setMyCommands([
+      {
+        command: 'start',
+        description: 'Start the bot'
+      },
+      {
+        command: 'check',
+        description: 'Check Tesla inventory'
+      }
+    ], {
+      scope: {
+        type: 'all_private_chats'
+      },
+      language_code: 'en'
+    });
+
+    console.log('✅ Bot commands set successfully');
+  } catch (error) {
+    console.error('❌ Error setting bot commands:', error);
+  }
+}
+
 export function createBot(token: string, dependencies: Dependencies, botConfig?: BotConfig<Context>) {
   const {
     config,
@@ -76,6 +117,9 @@ export function createBot(token: string, dependencies: Dependencies, botConfig?:
 
   // Setup cron job
   setupCronJob(bot)
+
+  // Setup bot commands
+  setupCommands(bot)
 
   return bot
 }
