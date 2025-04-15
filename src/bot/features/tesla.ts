@@ -29,45 +29,17 @@ const TESLA_API_URL = 'https://www.tesla.com/inventory/api/v4/inventory-results?
 
 function isNewModelY(vehicle: TeslaInventoryResponse['results'][0]): boolean {
   try {
-    // Yeni model Y'lerin özellikleri:
-    // 1. Stealth Grey veya Ultra Red renk seçenekleri
-    // 2. 19" Crossflow veya 20" Induction jantlar
-    // 3. All Black Premium İç Mekan
-    // 4. Ambient lighting özelliği
-    
-    if (!vehicle?.OptionCodeData || !vehicle?.WHEELS || !vehicle?.PAINT) {
+    if (!vehicle?.OptionCodeData) {
       return false;
     }
     
-    // Renk kontrolü
-    const hasNewColors = vehicle.PAINT.some(color => 
-      color === 'GREY' || color === 'SILVER' // Stealth Grey
-    );
+    // Range değerini kontrol et
+    const range = vehicle.OptionCodeData.find(opt => opt?.group === 'SPECS_RANGE');
+    if (range && parseInt(range.value) >= 568) {
+      return true;
+    }
     
-    // Jant kontrolü
-    const hasNewWheels = vehicle.WHEELS.some(wheel => 
-      wheel === 'NINETEEN' // 19" Crossflow
-    );
-    
-    // İç mekan kontrolü
-    const hasNewInterior = vehicle.INTERIOR.some(interior => 
-      interior === 'PREMIUM_BLACK' // All Black Premium İç Mekan
-    );
-    
-    // Ambient lighting kontrolü
-    const hasAmbientLighting = vehicle.OptionCodeData.some(opt => 
-      opt?.group === 'INTERIOR' && opt?.value?.includes('Ambient')
-    );
-    
-    // Eğer bu özelliklerden en az ikisi varsa, yeni modeldir
-    const newFeaturesCount = [
-      hasNewColors,
-      hasNewWheels,
-      hasNewInterior,
-      hasAmbientLighting
-    ].filter(Boolean).length;
-    
-    return newFeaturesCount >= 2;
+    return false;
   } catch (error) {
     logger.error('Error in isNewModelY:', error);
     return false;
