@@ -6,6 +6,7 @@ import fs from 'fs';
 import path from 'path';
 
 const composer = new Composer<Context>();
+const INVENTORY_FILE = path.join(process.cwd(), 'inventory.json');
 
 interface TeslaInventoryResponse {
   results: Array<{
@@ -154,9 +155,44 @@ composer.command('check', async (ctx) => {
       logger.error('Invalid response format:', data);
       throw new Error('Invalid response format from Tesla API');
     }
+
+    // results'ı array'e çevir ve düzleştir
+    const results = Array.isArray(data.results) 
+      ? data.results.flat() 
+      : Object.values(data.results).flat() as TeslaInventoryResponse['results'];
+    
+    // Envanter durumunu kaydet
+    const inventoryData = {
+      timestamp: Date.now(),
+      vehicles: results
+    };
+    
+    try {
+      fs.writeFileSync(INVENTORY_FILE, JSON.stringify(inventoryData, null, 2));
+      logger.info('Inventory data saved successfully');
+    } catch (error) {
+      logger.error('Error saving inventory data:', error);
+    }
+    
+    // Envanterde araç yoksa özel mesaj gönder
+    if (results.length === 0) {
+      await ctx.reply(
+        '📢 Tesla Model Y Envanter Durumu\n\n' +
+        '❌ Şu anda envanterde hiç araç bulunmuyor.\n' +
+        'Daha sonra tekrar kontrol etmek için /check komutunu kullanabilirsiniz.\n\n' +
+        'Detaylı bilgi için: https://www.tesla.com/tr_tr/inventory/new/my',
+        {
+          parse_mode: 'HTML',
+          link_preview_options: {
+            is_disabled: true
+          }
+        }
+      );
+      return;
+    }
     
     const totalVehicles = data.total_matches_found;
-    const availableVehicles = data.results.length;
+    const availableVehicles = results.length;
     
     let message = `🚗 Tesla Model Y Envanter Durumu:\n\n` +
       `Toplam Araç Sayısı: ${totalVehicles}\n` +
@@ -164,7 +200,7 @@ composer.command('check', async (ctx) => {
       `📋 İlk 10 Araç Detayları:\n\n`;
 
     // İlk 10 aracın detaylarını ekle
-    data.results.slice(0, 10).forEach((vehicle, index) => {
+    results.slice(0, 10).forEach((vehicle, index) => {
       try {
         message += `${index + 1}. ${formatVehicleMessage(vehicle)}\n`;
       } catch (vehicleError) {
