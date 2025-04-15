@@ -36,6 +36,28 @@ const INVENTORY_FILE = path.join(process.cwd(), 'inventory.json');
 
 let isJobRunning = false;
 let lastRunTime = 0;
+let cronJob: cron.ScheduledTask | null = null;
+
+function cleanup() {
+  if (cronJob) {
+    cronJob.stop();
+    cronJob = null;
+  }
+  isJobRunning = false;
+}
+
+// SIGINT (Ctrl+C) ve SIGTERM sinyallerini yakala
+process.on('SIGINT', () => {
+  logger.info('Received SIGINT signal, cleaning up...');
+  cleanup();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  logger.info('Received SIGTERM signal, cleaning up...');
+  cleanup();
+  process.exit(0);
+});
 
 function loadStoredInventory(): StoredInventory | null {
   try {
@@ -171,7 +193,7 @@ function formatVehicleMessage(vehicle: TeslaInventoryResponse['results'][0]) {
 
 export function setupCronJob(bot: Bot<Context>) {
   // Run every 30 seconds
-  cron.schedule('*/30 * * * * *', async () => {
+  cronJob = cron.schedule('*/30 * * * * *', async () => {
     const now = Date.now();
     
     // Prevent multiple instances from running simultaneously

@@ -264,6 +264,7 @@ composer.command('check', async (ctx) => {
     }
   } finally {
     clearTimeout(timeout);
+    controller.abort(); // Açık kalan bağlantıyı kapat
   }
 });
 
