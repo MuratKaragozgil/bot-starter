@@ -4,6 +4,7 @@ import { logger } from '#root/logger.js';
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
+import { isNewModelY, formatColor, formatInterior, formatWheels } from '#root/bot/utils/tesla-utils.js';
 
 const composer = new Composer<Context>();
 const INVENTORY_FILE = path.join(process.cwd(), 'inventory.json');
@@ -27,80 +28,6 @@ interface TeslaInventoryResponse {
 }
 
 const TESLA_API_URL = 'https://www.tesla.com/inventory/api/v4/inventory-results?query=%7B%22query%22%3A%7B%22model%22%3A%22my%22%2C%22condition%22%3A%22new%22%2C%22options%22%3A%7B%7D%2C%22arrangeby%22%3A%22Price%22%2C%22order%22%3A%22asc%22%2C%22market%22%3A%22TR%22%2C%22language%22%3A%22tr%22%2C%22super_region%22%3A%22north%20america%22%2C%22lng%22%3A28.9601%2C%22lat%22%3A41.03%2C%22zip%22%3A%2234080%22%2C%22range%22%3A0%2C%22region%22%3A%22TR%22%7D%2C%22offset%22%3A0%2C%22count%22%3A24%2C%22outsideOffset%22%3A0%2C%22outsideSearch%22%3Afalse%2C%22isFalconDeliverySelectionEnabled%22%3Atrue%2C%22version%22%3A%22v2%22%7D';
-
-function isNewModelY(vehicle: TeslaInventoryResponse['results'][0]): boolean {
-  try {
-    if (!vehicle?.OptionCodeData) {
-      return false;
-    }
-    
-    // Range değerini kontrol et
-    const range = vehicle.OptionCodeData.find(opt => opt?.group === 'SPECS_RANGE');
-    if (range && parseInt(range.value) >= 568) {
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    logger.error('Error in isNewModelY:', error);
-    return false;
-  }
-}
-
-function formatColor(color: string): string {
-  switch (color) {
-    case 'PREMIUM_BLACK':
-      return 'Siyah';
-    case 'PREMIUM_WHITE':
-      return 'Beyaz';
-    case 'STEALTH_GREY':
-      return 'Stealth Gri';
-    case 'ULTRA_RED':
-      return 'Ultra Kırmızı';
-    case 'DEEP_BLUE':
-      return 'Koyu Mavi';
-    case 'MIDNIGHT_SILVER':
-      return 'Gece Gümüşü';
-    case 'SILVER':
-      return 'Gümüş';
-    case 'GREY':
-      return 'Gri';
-    default:
-      return color;
-  }
-}
-
-function formatInterior(interior: string): string {
-  switch (interior) {
-    case 'PREMIUM_BLACK':
-      return 'Siyah Premium';
-    case 'PREMIUM_WHITE':
-      return 'Beyaz Premium';
-    case 'BLACK':
-      return 'Siyah';
-    case 'WHITE':
-      return 'Beyaz';
-    case 'CREAM':
-      return 'Krem';
-    default:
-      return interior;
-  }
-}
-
-function formatWheels(wheels: string): string {
-  switch (wheels) {
-    case 'NINETEEN':
-      return '19" Crossflow';
-    case 'TWENTY_ONE':
-      return '21" Überturbine';
-    case 'PHOTON':
-      return '19" Photon';
-    case 'INDUCTION':
-      return '20" Induction';
-    default:
-      return wheels;
-  }
-}
 
 function formatVehicleMessage(vehicle: TeslaInventoryResponse['results'][0]) {
   try {

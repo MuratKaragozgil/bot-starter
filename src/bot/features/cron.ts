@@ -6,6 +6,7 @@ import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import { sendRateLimitedMessage } from '#root/bot/utils/rate-limited-sender.js';
+import { isNewModelY, formatColor, formatInterior, formatWheels } from '#root/bot/utils/tesla-utils.js';
 
 interface TeslaInventoryResponse {
   results: Array<{
@@ -131,25 +132,6 @@ function findChanges(oldVehicles: TeslaInventoryResponse['results'], newVehicles
       newVehicles: [],
       priceChanges: []
     };
-  }
-}
-
-function isNewModelY(vehicle: TeslaInventoryResponse['results'][0]): boolean {
-  try {
-    if (!vehicle?.OptionCodeData) {
-      return false;
-    }
-    
-    // Range değerini kontrol et
-    const range = vehicle.OptionCodeData.find(opt => opt?.group === 'SPECS_RANGE');
-    if (range && parseInt(range.value) >= 568) {
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    logger.error('Error in isNewModelY:', error);
-    return false;
   }
 }
 
