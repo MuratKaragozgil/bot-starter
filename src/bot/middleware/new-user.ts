@@ -12,7 +12,6 @@ interface Member {
   username?: string;
   first_name?: string;
   last_name?: string;
-  last_seen: number;
 }
 
 // Kullanıcı verilerini yükle
@@ -94,8 +93,7 @@ composer.use(async (ctx, next) => {
       id: userId,
       username: ctx.from.username,
       first_name: ctx.from.first_name,
-      last_name: ctx.from.last_name,
-      last_seen: Date.now()
+      last_name: ctx.from.last_name
     };
 
     logger.info('➕ Adding new member:', newMember);
@@ -126,13 +124,6 @@ composer.use(async (ctx, next) => {
         logger.error(`❌ Error sending notification to admin ${adminId}:`, error);
       }
     }
-  } else {
-    // Mevcut kullanıcının last_seen'ini güncelle
-    const index = members.findIndex(m => m.id === userId);
-    logger.info('🔄 Updating last_seen for existing user:', userId);
-    members[index].last_seen = Date.now();
-    saveMembers(members);
-    logger.info('✅ Updated last_seen for user:', userId);
   }
 
   return next();
