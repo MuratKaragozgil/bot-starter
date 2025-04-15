@@ -156,9 +156,3 @@ data/
 # Data files
 inventory.json
 members.json
-
-# Ignore all files in the members directory
-members/*
-
-# Ignore all files in the inventory directory
-inventory/*

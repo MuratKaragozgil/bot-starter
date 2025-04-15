@@ -7,68 +7,6 @@ import path from 'path';
 
 const composer = new Composer<Context>();
 
-// Admin ID'leri
-const ADMIN_IDS = [740651254]; // Admin ID'lerini buraya ekleyin
-
-// Kullanıcı verilerini saklamak için dosya yolu
-const USERS_FILE = path.join(process.cwd(), 'users.json');
-
-// Kullanıcı verilerini yükle
-function loadUsers(): Set<number> {
-  try {
-    if (fs.existsSync(USERS_FILE)) {
-      const data = fs.readFileSync(USERS_FILE, 'utf-8');
-      return new Set(JSON.parse(data));
-    }
-  } catch (error) {
-    logger.error('Error loading users:', error);
-  }
-  return new Set();
-}
-
-// Kullanıcı verilerini kaydet
-function saveUsers(users: Set<number>) {
-  try {
-    fs.writeFileSync(USERS_FILE, JSON.stringify(Array.from(users)));
-  } catch (error) {
-    logger.error('Error saving users:', error);
-  }
-}
-
-// Yeni kullanıcı kontrolü için middleware
-composer.use(async (ctx, next) => {
-  if (!ctx.from) return next();
-
-  const userId = ctx.from.id;
-  const users = loadUsers();
-
-  // Eğer kullanıcı yeni ise
-  if (!users.has(userId)) {
-    users.add(userId);
-    saveUsers(users);
-
-    // Adminlere bildirim gönder
-    const userInfo = [
-      `👤 Yeni Kullanıcı Bildirimi`,
-      `ID: ${userId}`,
-      ctx.from.first_name ? `İsim: ${ctx.from.first_name}` : '',
-      ctx.from.last_name ? `Soyisim: ${ctx.from.last_name}` : '',
-      ctx.from.username ? `Kullanıcı Adı: @${ctx.from.username}` : '',
-      `Tarih: ${new Date().toLocaleString('tr-TR')}`
-    ].filter(Boolean).join('\n');
-
-    for (const adminId of ADMIN_IDS) {
-      try {
-        await ctx.api.sendMessage(adminId, userInfo);
-      } catch (error) {
-        logger.error(`Error sending new user notification to admin ${adminId}:`, error);
-      }
-    }
-  }
-
-  return next();
-});
-
 interface TeslaInventoryResponse {
   results: Array<{
     Model: string;
