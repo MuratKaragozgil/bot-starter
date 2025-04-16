@@ -4,7 +4,8 @@ import { logger } from '#root/logger.js';
 import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
-import { isNewModelY, formatColor, formatInterior, formatWheels } from '#root/bot/utils/tesla-utils.js';
+import { isNewModelY, formatColor, formatInterior, formatWheels, PROXY_URL } from '#root/bot/utils/tesla-utils.js';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const composer = new Composer<Context>();
 const INVENTORY_FILE = path.join(process.cwd(), 'inventory.json');
@@ -62,8 +63,11 @@ composer.command('check', async (ctx) => {
 
   try {
     logger.info('Fetching Tesla inventory data...');
+    const proxyAgent = new HttpsProxyAgent(PROXY_URL);
+    
     const response = await fetch(TESLA_API_URL, {
       signal: controller.signal,
+      agent: proxyAgent,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
       }

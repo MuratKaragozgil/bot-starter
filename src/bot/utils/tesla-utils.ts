@@ -1,5 +1,15 @@
 import { logger } from '#root/logger.js';
 
+// Proxy configuration
+export const PROXY_CONFIG = {
+  host: 'gate.smartproxy.com',
+  port: '10001',
+  auth: 'spezv1a5gj:h1_TLlfOF7r3u9whkx'
+};
+
+// Proxy URL for fetch
+export const PROXY_URL = `http://${PROXY_CONFIG.auth}@${PROXY_CONFIG.host}:${PROXY_CONFIG.port}`;
+
 interface TeslaVehicle {
   OptionCodeData?: Array<{
     group: string;

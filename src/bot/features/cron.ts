@@ -6,7 +6,8 @@ import fetch from 'node-fetch';
 import fs from 'fs';
 import path from 'path';
 import { sendRateLimitedMessage } from '#root/bot/utils/rate-limited-sender.js';
-import { isNewModelY, formatColor, formatInterior, formatWheels } from '#root/bot/utils/tesla-utils.js';
+import { isNewModelY, formatColor, formatInterior, formatWheels, PROXY_URL } from '#root/bot/utils/tesla-utils.js';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 interface TeslaInventoryResponse {
   results: Array<{
@@ -84,11 +85,7 @@ function saveInventory(inventory: StoredInventory) {
 function findChanges(oldVehicles: TeslaInventoryResponse['results'], newVehicles: TeslaInventoryResponse['results']) {
   try {
     const changes = {
-      newVehicles: [] as TeslaInventoryResponse['results'],
-      priceChanges: [] as Array<{
-        old: TeslaInventoryResponse['results'][0];
-        new: TeslaInventoryResponse['results'][0];
-      }>,
+      newVehicles: [] as TeslaInventoryResponse['results']
     };
 
     // Find new vehicles
@@ -108,29 +105,11 @@ function findChanges(oldVehicles: TeslaInventoryResponse['results'], newVehicles
       }
     });
 
-    // Find price changes
-    oldVehicles.forEach(oldVehicle => {
-      try {
-        const newVehicle = newVehicles.find(v => 
-          v?.TrimName === oldVehicle?.TrimName &&
-          v?.PAINT?.[0] === oldVehicle?.PAINT?.[0] &&
-          v?.INTERIOR?.[0] === oldVehicle?.INTERIOR?.[0] &&
-          v?.WHEELS?.[0] === oldVehicle?.WHEELS?.[0]
-        );
-        if (newVehicle && newVehicle.InventoryPrice !== oldVehicle.InventoryPrice) {
-          changes.priceChanges.push({ old: oldVehicle, new: newVehicle });
-        }
-      } catch (error) {
-        logger.error('Error comparing prices:', error);
-      }
-    });
-
     return changes;
   } catch (error) {
     logger.error('Error in findChanges:', error);
     return {
-      newVehicles: [],
-      priceChanges: []
+      newVehicles: []
     };
   }
 }
@@ -162,8 +141,6 @@ export function setupCronJob(bot: Bot<Context>) {
   cronJob = cron.schedule('*/30 * * * * *', async () => {
     const now = Date.now();
     
-    // Prevent multiple instances from running simultaneously
-    // and ensure at least 30 seconds have passed since last run
     if (isJobRunning || (now - lastRunTime) < 30000) {
       logger.info('Previous job is still running or not enough time has passed, skipping this iteration');
       return;
@@ -176,8 +153,11 @@ export function setupCronJob(bot: Bot<Context>) {
 
     try {
       logger.info('Starting Tesla inventory check...');
+      const proxyAgent = new HttpsProxyAgent(PROXY_URL);
+      
       const response = await fetch(TESLA_API_URL, {
         signal: controller.signal,
+        agent: proxyAgent,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
@@ -212,7 +192,7 @@ export function setupCronJob(bot: Bot<Context>) {
 
       const changes = findChanges(storedInventory.vehicles, data.results);
       
-      if (changes.newVehicles.length === 0 && changes.priceChanges.length === 0) {
+      if (changes.newVehicles.length === 0) {
         logger.info('No changes found in inventory');
         return;
       }
@@ -227,21 +207,6 @@ export function setupCronJob(bot: Bot<Context>) {
           } catch (error) {
             logger.error('Error formatting vehicle message:', error);
             message += `❌ Hata: Araç bilgileri formatlanırken bir sorun oluştu\n\n`;
-          }
-        });
-      }
-
-      if (changes.priceChanges.length > 0) {
-        message += `💰 Fiyat Değişiklikleri:\n\n`;
-        changes.priceChanges.forEach(({ old, new: newVehicle }) => {
-          try {
-            message += `${old.TrimName}\n` +
-              `Eski Fiyat: ${old.InventoryPrice.toLocaleString('tr-TR')} TL\n` +
-              `Yeni Fiyat: ${newVehicle.InventoryPrice.toLocaleString('tr-TR')} TL\n` +
-              `Fark: ${(newVehicle.InventoryPrice - old.InventoryPrice).toLocaleString('tr-TR')} TL\n\n`;
-          } catch (error) {
-            logger.error('Error formatting price change message:', error);
-            message += `❌ Hata: Fiyat değişikliği formatlanırken bir sorun oluştu\n\n`;
           }
         });
       }
