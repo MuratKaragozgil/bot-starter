@@ -150,11 +150,13 @@ function formatVehicleMessage(vehicle: TeslaInventoryResponse['results'][0]) {
 }
 
 export function setupCronJob(bot: Bot<Context>) {
-  // Run every 30 seconds
-  cronJob = cron.schedule('*/30 * * * * *', async () => {
+  // Run every 5 minutes
+  cronJob = cron.schedule('*/5 * * * *', async () => {
     const now = Date.now();
     
-    if (isJobRunning || (now - lastRunTime) < 30000) {
+    // Prevent multiple instances from running simultaneously
+    // and ensure at least 4 minutes have passed since last run
+    if (isJobRunning || (now - lastRunTime) < 240000) {
       logger.info('Previous job is still running or not enough time has passed, skipping this iteration');
       return;
     }
