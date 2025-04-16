@@ -28,7 +28,11 @@ interface TeslaInventoryResponse {
   total_matches_found: string;
 }
 
-const TESLA_API_URL = 'https://www.tesla.com/inventory/api/v4/inventory-results?query=%7B%22query%22%3A%7B%22model%22%3A%22my%22%2C%22condition%22%3A%22new%22%2C%22options%22%3A%7B%7D%2C%22arrangeby%22%3A%22Price%22%2C%22order%22%3A%22asc%22%2C%22market%22%3A%22TR%22%2C%22language%22%3A%22tr%22%2C%22super_region%22%3A%22north%20america%22%2C%22lng%22%3A28.9601%2C%22lat%22%3A41.03%2C%22zip%22%3A%2234080%22%2C%22range%22%3A0%2C%22region%22%3A%22TR%22%7D%2C%22offset%22%3A0%2C%22count%22%3A24%2C%22outsideOffset%22%3A0%2C%22outsideSearch%22%3Afalse%2C%22isFalconDeliverySelectionEnabled%22%3Atrue%2C%22version%22%3A%22v2%22%7D';
+interface StoredInventory {
+  timestamp: number;
+  vehicles: TeslaInventoryResponse['results'];
+  total_matches_found: string;
+}
 
 function formatVehicleMessage(vehicle: TeslaInventoryResponse['results'][0]) {
   try {
@@ -58,55 +62,33 @@ function formatVehicleMessage(vehicle: TeslaInventoryResponse['results'][0]) {
 }
 
 composer.command('check', async (ctx) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000); // 10 saniye timeout
-
   try {
-    logger.info('Fetching Tesla inventory data...');
-    const proxyAgent = new HttpsProxyAgent(PROXY_URL);
+    logger.info('Reading inventory data from file...');
     
-    const response = await fetch(TESLA_API_URL, {
-      signal: controller.signal,
-      agent: proxyAgent,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      logger.error(`HTTP error! status: ${response.status}, response: ${errorText}`);
-      throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`);
+    if (!fs.existsSync(INVENTORY_FILE)) {
+      await ctx.reply(
+        '❌ Henüz envanter verisi bulunamadı.\n' +
+        'Lütfen birkaç dakika bekleyip tekrar deneyin.',
+        {
+          parse_mode: 'HTML',
+          link_preview_options: {
+            is_disabled: true
+          }
+        }
+      );
+      return;
     }
 
-    logger.info('Parsing Tesla inventory data...');
-    const data = await response.json() as TeslaInventoryResponse;
+    const inventoryData = JSON.parse(fs.readFileSync(INVENTORY_FILE, 'utf-8')) as StoredInventory;
+    const lastUpdateTime = new Date(inventoryData.timestamp).toLocaleTimeString('tr-TR');
     
-    if (!data || !data.results) {
-      logger.error('Invalid response format:', data);
-      throw new Error('Invalid response format from Tesla API');
+    if (!inventoryData.vehicles || !Array.isArray(inventoryData.vehicles)) {
+      logger.error('Invalid inventory data format:', inventoryData);
+      throw new Error('Invalid inventory data format');
     }
 
-    // results'ı array'e çevir ve düzleştir
-    const results = Array.isArray(data.results) 
-      ? data.results.flat() 
-      : Object.values(data.results).flat() as TeslaInventoryResponse['results'];
-    
-    // Envanter durumunu kaydet
-    const inventoryData = {
-      timestamp: Date.now(),
-      vehicles: results
-    };
-    
-    try {
-      fs.writeFileSync(INVENTORY_FILE, JSON.stringify(inventoryData, null, 2));
-      logger.info('Inventory data saved successfully');
-    } catch (error) {
-      logger.error('Error saving inventory data:', error);
-    }
-    
     // Envanterde araç yoksa özel mesaj gönder
-    if (results.length === 0) {
+    if (inventoryData.vehicles.length === 0) {
       await ctx.reply(
         '📢 Tesla Model Y Envanter Durumu\n\n' +
         '❌ Şu anda envanterde hiç araç bulunmuyor.\n' +
@@ -122,16 +104,14 @@ composer.command('check', async (ctx) => {
       return;
     }
     
-    const totalVehicles = data.total_matches_found;
-    const availableVehicles = results.length;
-    
     let message = `🚗 Tesla Model Y Envanter Durumu:\n\n` +
-      `Toplam Araç Sayısı: ${totalVehicles}\n` +
-      `Gösterilen Araç Sayısı: ${availableVehicles}\n\n` +
+      `Son Güncelleme: ${lastUpdateTime}\n` +
+      `Toplam Araç Sayısı: ${inventoryData.total_matches_found || inventoryData.vehicles.length}\n` +
+      `Gösterilen Araç Sayısı: ${inventoryData.vehicles.length}\n\n` +
       `📋 İlk 10 Araç Detayları:\n\n`;
 
     // İlk 10 aracın detaylarını ekle
-    results.slice(0, 10).forEach((vehicle, index) => {
+    inventoryData.vehicles.slice(0, 10).forEach((vehicle, index) => {
       try {
         message += `${index + 1}. ${formatVehicleMessage(vehicle)}\n`;
       } catch (vehicleError) {
@@ -149,53 +129,18 @@ composer.command('check', async (ctx) => {
       }
     });
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.name === 'AbortError') {
-        logger.error('Tesla inventory check timed out');
-        await ctx.reply(
-          '⚠️ <b>Zaman Aşımı Hatası</b>\n\n' +
-          'Envanter kontrolü 10 saniye içinde tamamlanamadı.\n' +
-          'Lütfen birkaç dakika sonra tekrar deneyin.',
-          {
-            parse_mode: 'HTML',
-            link_preview_options: {
-              is_disabled: true
-            }
-          }
-        );
-      } else {
-        logger.error('Tesla inventory check failed:', error);
-        await ctx.reply(
-          '❌ <b>Hata Oluştu</b>\n\n' +
-          'Envanter kontrolü sırasında bir sorun oluştu.\n' +
-          'Lütfen birkaç dakika sonra tekrar deneyin.\n\n' +
-          '<i>Hata Detayı:</i>\n' +
-          `<code>${error.message}</code>`,
-          {
-            parse_mode: 'HTML',
-            link_preview_options: {
-              is_disabled: true
-            }
-          }
-        );
-      }
-    } else {
-      logger.error('Unknown error occurred:', error);
-      await ctx.reply(
-        '❌ <b>Bilinmeyen Hata</b>\n\n' +
-        'Beklenmeyen bir hata oluştu.\n' +
-        'Lütfen birkaç dakika sonra tekrar deneyin.',
-        {
-          parse_mode: 'HTML',
-          link_preview_options: {
-            is_disabled: true
-          }
+    logger.error('Error reading inventory data:', error);
+    await ctx.reply(
+      '❌ <b>Hata Oluştu</b>\n\n' +
+      'Envanter verisi okunurken bir sorun oluştu.\n' +
+      'Lütfen birkaç dakika sonra tekrar deneyin.',
+      {
+        parse_mode: 'HTML',
+        link_preview_options: {
+          is_disabled: true
         }
-      );
-    }
-  } finally {
-    clearTimeout(timeout);
-    controller.abort(); // Açık kalan bağlantıyı kapat
+      }
+    );
   }
 });
 

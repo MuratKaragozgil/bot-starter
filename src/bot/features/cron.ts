@@ -23,6 +23,7 @@ interface TeslaInventoryResponse {
       value: string;
       unit_short: string;
     }>;
+    VIN?: string;
   }>;
   total_matches_found: string;
 }
@@ -30,6 +31,7 @@ interface TeslaInventoryResponse {
 interface StoredInventory {
   timestamp: number;
   vehicles: TeslaInventoryResponse['results'];
+  total_matches_found: string;
 }
 
 const TESLA_API_URL = 'https://www.tesla.com/inventory/api/v4/inventory-results?query=%7B%22query%22%3A%7B%22model%22%3A%22my%22%2C%22condition%22%3A%22new%22%2C%22options%22%3A%7B%7D%2C%22arrangeby%22%3A%22Price%22%2C%22order%22%3A%22asc%22%2C%22market%22%3A%22TR%22%2C%22language%22%3A%22tr%22%2C%22super_region%22%3A%22north%20america%22%2C%22lng%22%3A28.9601%2C%22lat%22%3A41.03%2C%22zip%22%3A%2234080%22%2C%22range%22%3A0%2C%22region%22%3A%22TR%22%7D%2C%22offset%22%3A0%2C%22count%22%3A24%2C%22outsideOffset%22%3A0%2C%22outsideSearch%22%3Afalse%2C%22isFalconDeliverySelectionEnabled%22%3Atrue%2C%22version%22%3A%22v2%22%7D';
@@ -77,34 +79,45 @@ function loadStoredInventory(): StoredInventory | null {
 function saveInventory(inventory: StoredInventory) {
   try {
     fs.writeFileSync(INVENTORY_FILE, JSON.stringify(inventory, null, 2));
+    logger.info('Inventory data saved successfully');
   } catch (error) {
-    logger.error('Error saving inventory:', error);
+    logger.error('Error saving inventory data:', error);
   }
 }
 
 function findChanges(oldVehicles: TeslaInventoryResponse['results'], newVehicles: TeslaInventoryResponse['results']) {
   try {
+    logger.info(`Comparing vehicles - Old: ${oldVehicles.length}, New: ${newVehicles.length}`);
+    
     const changes = {
       newVehicles: [] as TeslaInventoryResponse['results']
     };
 
-    // Find new vehicles
-    newVehicles.forEach(newVehicle => {
-      try {
-        const exists = oldVehicles.some(oldVehicle => 
-          oldVehicle?.TrimName === newVehicle?.TrimName &&
-          oldVehicle?.PAINT?.[0] === newVehicle?.PAINT?.[0] &&
-          oldVehicle?.INTERIOR?.[0] === newVehicle?.INTERIOR?.[0] &&
-          oldVehicle?.WHEELS?.[0] === newVehicle?.WHEELS?.[0]
-        );
-        if (!exists) {
-          changes.newVehicles.push(newVehicle);
-        }
-      } catch (error) {
-        logger.error('Error comparing vehicles:', error);
+    // Create a set of existing VINs for faster lookup
+    const existingVINs = new Set();
+    oldVehicles.forEach(vehicle => {
+      if (vehicle.VIN) {
+        existingVINs.add(vehicle.VIN);
+        logger.info(`Old vehicle VIN: ${vehicle.VIN}`);
       }
     });
 
+    // Check each new vehicle
+    newVehicles.forEach(vehicle => {
+      if (vehicle.VIN) {
+        logger.info(`Checking new vehicle VIN: ${vehicle.VIN}`);
+        
+        if (!existingVINs.has(vehicle.VIN)) {
+          logger.info(`New vehicle found with VIN: ${vehicle.VIN}`);
+          logger.info(`New vehicle details: ${vehicle.TrimName} - ${vehicle.PAINT?.[0]} - ${vehicle.INTERIOR?.[0]} - ${vehicle.WHEELS?.[0]}`);
+          changes.newVehicles.push(vehicle);
+        }
+      } else {
+        logger.warn(`Vehicle found without VIN: ${vehicle.TrimName}`);
+      }
+    });
+
+    logger.info(`Changes found: ${changes.newVehicles.length} new vehicles`);
     return changes;
   } catch (error) {
     logger.error('Error in findChanges:', error);
@@ -179,13 +192,35 @@ export function setupCronJob(bot: Bot<Context>) {
 
       const storedInventory = loadStoredInventory();
       
+      // Her durumda yeni veriyi kaydet
+      const newInventory: StoredInventory = {
+        timestamp: Date.now(),
+        vehicles: data.results,
+        total_matches_found: data.total_matches_found
+      };
+
+      // Mevcut envanter durumunu logla
+      if (storedInventory) {
+        logger.info('Current stored inventory:', {
+          timestamp: new Date(storedInventory.timestamp).toISOString(),
+          vehicleCount: storedInventory.vehicles.length,
+          total_matches_found: storedInventory.total_matches_found
+        });
+      }
+
+      // Yeni envanter durumunu logla
+      logger.info('New inventory data:', {
+        timestamp: new Date(newInventory.timestamp).toISOString(),
+        vehicleCount: newInventory.vehicles.length,
+        total_matches_found: newInventory.total_matches_found
+      });
+      
+      saveInventory(newInventory);
+      logger.info('New inventory data saved');
+      
       if (!storedInventory) {
         // First run, just save the inventory
         logger.info('First run detected, saving initial inventory');
-        saveInventory({
-          timestamp: Date.now(),
-          vehicles: data.results
-        });
         await bot.api.sendMessage(ADMIN_ID, '📊 İlk envanter kontrolü tamamlandı. Değişiklikler bundan sonra takip edilecek.');
         return;
       }
@@ -196,6 +231,8 @@ export function setupCronJob(bot: Bot<Context>) {
         logger.info('No changes found in inventory');
         return;
       }
+
+      logger.info(`Found ${changes.newVehicles.length} new vehicles, preparing notification...`);
 
       let message = `🔄 Tesla Model Y Envanter Güncellemesi (${new Date().toLocaleTimeString('tr-TR')}):\n\n`;
 
@@ -210,12 +247,6 @@ export function setupCronJob(bot: Bot<Context>) {
           }
         });
       }
-
-      // Save the new inventory
-      saveInventory({
-        timestamp: Date.now(),
-        vehicles: data.results
-      });
 
       // Sadece admin'e değil, tüm üyelere bildirim gönder
       await sendRateLimitedMessage(bot, message, {
