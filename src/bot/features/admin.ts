@@ -1,18 +1,17 @@
 import type { Context } from '#root/bot/context.js'
+import fs from 'node:fs'
+import path from 'node:path'
+import process from 'node:process'
 import { isAdmin } from '#root/bot/filters/is-admin.js'
 import { setCommandsHandler } from '#root/bot/handlers/commands/setcommands.js'
 import { logHandle } from '#root/bot/helpers/logging.js'
+import { logger } from '#root/logger.js'
 import { chatAction } from '@grammyjs/auto-chat-action'
 import { Composer } from 'grammy'
-import { logger } from '#root/logger.js'
-import fs from 'fs'
-import path from 'path'
 
 const composer = new Composer<Context>()
 
-const feature = composer
-  .chatType('private')
-  .filter(isAdmin)
+const feature = composer.chatType('private').filter(isAdmin)
 
 feature.command(
   'setcommands',
@@ -37,11 +36,12 @@ feature.command('stats', async (ctx) => {
     const message = [
       '📊 Bot İstatistikleri',
       `👥 Toplam Üye Sayısı: ${totalMembers}`,
-      `⏰ Son Güncelleme: ${new Date().toLocaleString('tr-TR')}`
+      `⏰ Son Güncelleme: ${new Date().toLocaleString('tr-TR')}`,
     ].join('\n')
 
     await ctx.reply(message)
-  } catch (error) {
+  }
+  catch (error) {
     logger.error('Error in /stats command:', error)
     await ctx.reply('❌ İstatistikler alınırken bir hata oluştu.')
   }

@@ -23,10 +23,7 @@ async function startPolling(config: PollingConfig) {
     await runner?.stop()
   })
 
-  await Promise.all([
-    bot.init(),
-    bot.api.deleteWebhook(),
-  ])
+  await Promise.all([bot.init(), bot.api.deleteWebhook()])
 
   // start bot
   runner = run(bot, {

@@ -1,93 +1,96 @@
-import { logger } from '#root/logger.js';
+import { logger } from '#root/logger.js'
 
 // Proxy configuration
 export const PROXY_CONFIG = {
   host: 'gate.smartproxy.com',
   port: '10001',
-  auth: 'spezv1a5gj:h1_TLlfOF7r3u9whkx'
-};
+  auth: 'spezv1a5gj:h1_TLlfOF7r3u9whkx',
+}
 
 // Proxy URL for fetch
-export const PROXY_URL = `http://${PROXY_CONFIG.auth}@${PROXY_CONFIG.host}:${PROXY_CONFIG.port}`;
+export const PROXY_URL = `http://${PROXY_CONFIG.auth}@${PROXY_CONFIG.host}:${PROXY_CONFIG.port}`
 
 interface TeslaVehicle {
   OptionCodeData?: Array<{
-    group: string;
-    value: string;
-    unit_short: string;
-  }>;
+    group: string
+    value: string
+    unit_short: string
+  }>
 }
 
 export function isNewModelY(vehicle: TeslaVehicle): boolean {
   try {
     if (!vehicle?.OptionCodeData) {
-      return false;
+      return false
     }
-    
+
     // Range değerini kontrol et
-    const range = vehicle.OptionCodeData.find(opt => opt?.group === 'SPECS_RANGE');
-    if (range && parseInt(range.value) >= 568) {
-      return true;
+    const range = vehicle.OptionCodeData.find(
+      opt => opt?.group === 'SPECS_RANGE',
+    )
+    if (range && Number.parseInt(range.value) >= 568) {
+      return true
     }
-    
-    return false;
-  } catch (error) {
-    logger.error('Error in isNewModelY:', error);
-    return false;
+
+    return false
+  }
+  catch (error) {
+    logger.error('Error in isNewModelY:', error)
+    return false
   }
 }
 
 export function formatColor(color: string): string {
   switch (color) {
     case 'PREMIUM_BLACK':
-      return 'Siyah';
+      return 'Siyah'
     case 'PREMIUM_WHITE':
-      return 'Beyaz';
+      return 'Beyaz'
     case 'STEALTH_GREY':
-      return 'Stealth Gri';
+      return 'Stealth Gri'
     case 'ULTRA_RED':
-      return 'Ultra Kırmızı';
+      return 'Ultra Kırmızı'
     case 'DEEP_BLUE':
-      return 'Koyu Mavi';
+      return 'Koyu Mavi'
     case 'MIDNIGHT_SILVER':
-      return 'Gece Gümüşü';
+      return 'Gece Gümüşü'
     case 'SILVER':
-      return 'Gümüş';
+      return 'Gümüş'
     case 'GREY':
-      return 'Gri';
+      return 'Gri'
     default:
-      return color;
+      return color
   }
 }
 
 export function formatInterior(interior: string): string {
   switch (interior) {
     case 'PREMIUM_BLACK':
-      return 'Siyah Premium';
+      return 'Siyah Premium'
     case 'PREMIUM_WHITE':
-      return 'Beyaz Premium';
+      return 'Beyaz Premium'
     case 'BLACK':
-      return 'Siyah';
+      return 'Siyah'
     case 'WHITE':
-      return 'Beyaz';
+      return 'Beyaz'
     case 'CREAM':
-      return 'Krem';
+      return 'Krem'
     default:
-      return interior;
+      return interior
   }
 }
 
 export function formatWheels(wheels: string): string {
   switch (wheels) {
     case 'NINETEEN':
-      return '19" Crossflow';
+      return '19" Crossflow'
     case 'TWENTY_ONE':
-      return '21" Überturbine';
+      return '21" Überturbine'
     case 'PHOTON':
-      return '19" Photon';
+      return '19" Photon'
     case 'INDUCTION':
-      return '20" Induction';
+      return '20" Induction'
     default:
-      return wheels;
+      return wheels
   }
-} 
+}

@@ -3,16 +3,17 @@ import type { Config } from '#root/config.js'
 import type { Logger } from '#root/logger.js'
 import type { BotConfig } from 'grammy'
 import { adminFeature } from '#root/bot/features/admin.js'
+import { setupCronJob } from '#root/bot/features/cron.js'
 import { languageFeature } from '#root/bot/features/language.js'
+import { teslaFeature } from '#root/bot/features/tesla.js'
 import { unhandledFeature } from '#root/bot/features/unhandled.js'
 import { welcomeFeature } from '#root/bot/features/welcome.js'
-import { teslaFeature } from '#root/bot/features/tesla.js'
-import { setupCronJob } from '#root/bot/features/cron.js'
 import { errorHandler } from '#root/bot/handlers/error.js'
 import { i18n, isMultipleLocales } from '#root/bot/i18n.js'
+import { newUserMiddleware } from '#root/bot/middleware/new-user.js'
 import { session } from '#root/bot/middlewares/session.js'
 import { updateLogger } from '#root/bot/middlewares/update-logger.js'
-import { newUserMiddleware } from '#root/bot/middleware/new-user.js'
+import { logger } from '#root/logger.js'
 import { autoChatAction } from '@grammyjs/auto-chat-action'
 import { hydrate } from '@grammyjs/hydrate'
 import { hydrateReply, parseMode } from '@grammyjs/parse-mode'
@@ -31,73 +32,89 @@ function getSessionKey(ctx: Omit<Context, 'session'>) {
 // Bot komutlarını ayarla
 async function setupCommands(bot: TelegramBot<Context>) {
   try {
-    await bot.api.setMyCommands([
+    await bot.api.setMyCommands(
+      [
+        {
+          command: 'start',
+          description: 'Botu başlat / Start the bot',
+        },
+        {
+          command: 'check',
+          description: 'Tesla envanterini kontrol et / Check Tesla inventory',
+        },
+      ],
       {
-        command: 'start',
-        description: 'Botu başlat / Start the bot'
+        scope: {
+          type: 'all_private_chats',
+        },
+        language_code: 'tr',
       },
-      {
-        command: 'check',
-        description: 'Tesla envanterini kontrol et / Check Tesla inventory'
-      }
-    ], {
-      scope: {
-        type: 'all_private_chats'
-      },
-      language_code: 'tr'
-    });
+    )
 
-    await bot.api.setMyCommands([
+    await bot.api.setMyCommands(
+      [
+        {
+          command: 'start',
+          description: 'Start the bot',
+        },
+        {
+          command: 'check',
+          description: 'Check Tesla inventory',
+        },
+      ],
       {
-        command: 'start',
-        description: 'Start the bot'
+        scope: {
+          type: 'all_private_chats',
+        },
+        language_code: 'en',
       },
-      {
-        command: 'check',
-        description: 'Check Tesla inventory'
-      }
-    ], {
-      scope: {
-        type: 'all_private_chats'
-      },
-      language_code: 'en'
-    });
+    )
 
-    console.log('✅ Bot commands set successfully');
-  } catch (error) {
-    console.error('❌ Error setting bot commands:', error);
+    logger.info('✅ Bot commands set successfully')
+  }
+  catch (error) {
+    logger.error('❌ Error setting bot commands:', error)
   }
 }
 
 // Adminlere bot başlangıç bildirimi gönder
-async function sendStartupNotification(bot: TelegramBot<Context>, config: Config) {
+async function sendStartupNotification(
+  bot: TelegramBot<Context>,
+  config: Config,
+) {
   try {
-    const startupTime = new Date().toLocaleString('tr-TR');
+    const startupTime = new Date().toLocaleString('tr-TR')
     const message = [
       '🚀 Bot Başlatıldı',
       `⏰ Tarih: ${startupTime}`,
       `📊 Mod: ${config.isDebug ? 'Debug' : 'Production'}`,
-      `🔄 Polling: ${config.isPollingMode ? 'Açık' : 'Kapalı'}`
-    ].join('\n');
+      `🔄 Polling: ${config.isPollingMode ? 'Açık' : 'Kapalı'}`,
+    ].join('\n')
 
     for (const adminId of config.botAdmins) {
       try {
-        await bot.api.sendMessage(adminId, message);
-        console.log(`✅ Startup notification sent to admin ${adminId}`);
-      } catch (error) {
-        console.error(`❌ Error sending startup notification to admin ${adminId}:`, error);
+        await bot.api.sendMessage(adminId, message)
+        logger.info(`✅ Startup notification sent to admin ${adminId}`)
+      }
+      catch (error) {
+        logger.error(
+          `❌ Error sending startup notification to admin ${adminId}:`,
+          error,
+        )
       }
     }
-  } catch (error) {
-    console.error('❌ Error in startup notification:', error);
+  }
+  catch (error) {
+    logger.error('❌ Error in startup notification:', error)
   }
 }
 
-export function createBot(token: string, dependencies: Dependencies, botConfig?: BotConfig<Context>) {
-  const {
-    config,
-    logger,
-  } = dependencies
+export function createBot(
+  token: string,
+  dependencies: Dependencies,
+  botConfig?: BotConfig<Context>,
+) {
+  const { config, logger } = dependencies
 
   const bot = new TelegramBot<Context>(token, botConfig)
 
@@ -122,10 +139,12 @@ export function createBot(token: string, dependencies: Dependencies, botConfig?:
   protectedBot.use(autoChatAction(bot.api))
   protectedBot.use(hydrateReply)
   protectedBot.use(hydrate())
-  protectedBot.use(session({
-    getSessionKey,
-    storage: new MemorySessionStorage(),
-  }))
+  protectedBot.use(
+    session({
+      getSessionKey,
+      storage: new MemorySessionStorage(),
+    }),
+  )
   protectedBot.use(i18n)
   protectedBot.use(newUserMiddleware)
 
@@ -147,6 +166,8 @@ export function createBot(token: string, dependencies: Dependencies, botConfig?:
 
   // Send startup notification
   sendStartupNotification(bot, config)
+
+  logger.info('Bot started successfully')
 
   return bot
 }

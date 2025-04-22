@@ -1,59 +1,69 @@
-import { Bot } from 'grammy';
-import { config } from '#root/config.js';
-import type { Context } from '#root/bot/context.js';
-import { teslaFeature } from '#root/bot/features/tesla.js';
-import { welcomeFeature } from '#root/bot/features/welcome.js';
-import { newUserMiddleware } from '#root/bot/middleware/new-user.js';
+import type { Context } from '#root/bot/context.js'
+import { teslaFeature } from '#root/bot/features/tesla.js'
+import { welcomeFeature } from '#root/bot/features/welcome.js'
+import { newUserMiddleware } from '#root/bot/middleware/new-user.js'
+import { config } from '#root/config.js'
+import { logger } from '#root/logger.js'
+import { Bot } from 'grammy'
 
-export const bot = new Bot<Context>(config.botToken);
+export const bot = new Bot<Context>(config.botToken)
 
 // Bot komutlarını ayarla
 async function setupCommands() {
   try {
-    await bot.api.setMyCommands([
+    await bot.api.setMyCommands(
+      [
+        {
+          command: 'start',
+          description: 'Botu başlat / Start the bot',
+        },
+        {
+          command: 'check',
+          description: 'Tesla envanterini kontrol et / Check Tesla inventory',
+        },
+      ],
       {
-        command: 'start',
-        description: 'Botu başlat / Start the bot'
+        scope: {
+          type: 'all_private_chats',
+        },
+        language_code: 'tr',
       },
-      {
-        command: 'check',
-        description: 'Tesla envanterini kontrol et / Check Tesla inventory'
-      }
-    ], {
-      scope: {
-        type: 'all_private_chats'
-      },
-      language_code: 'tr'
-    });
+    )
 
-    await bot.api.setMyCommands([
+    await bot.api.setMyCommands(
+      [
+        {
+          command: 'start',
+          description: 'Start the bot',
+        },
+        {
+          command: 'check',
+          description: 'Check Tesla inventory',
+        },
+      ],
       {
-        command: 'start',
-        description: 'Start the bot'
+        scope: {
+          type: 'all_private_chats',
+        },
+        language_code: 'en',
       },
-      {
-        command: 'check',
-        description: 'Check Tesla inventory'
-      }
-    ], {
-      scope: {
-        type: 'all_private_chats'
-      },
-      language_code: 'en'
-    });
+    )
 
-    console.log('✅ Bot commands set successfully');
-  } catch (error) {
-    console.error('❌ Error setting bot commands:', error);
+    logger.info('✅ Bot commands set successfully')
+  }
+  catch (error) {
+    logger.error('❌ Error setting bot commands:', error)
   }
 }
 
 // Global middleware
-bot.use(newUserMiddleware);
+bot.use(newUserMiddleware)
 
 // Features
-bot.use(welcomeFeature);
-bot.use(teslaFeature);
+bot.use(welcomeFeature)
+bot.use(teslaFeature)
 
 // Komutları ayarla
-setupCommands(); 
+setupCommands()
+
+logger.info('Bot started successfully')

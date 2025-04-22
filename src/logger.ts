@@ -15,7 +15,8 @@ export const logger = pino({
                 colorize: true,
                 translateTime: true,
                 singleLine: false,
-                messageFormat: '{msg} {if err}{err.message}{end} {if obj}{obj}{end}'
+                messageFormat:
+                  '{msg} {if err}{err.message}{end} {if obj}{obj}{end}',
               },
             },
           ]
@@ -25,7 +26,7 @@ export const logger = pino({
               level: config.logLevel,
               options: {
                 destination: 1, // stdout
-                mkdir: true
+                mkdir: true,
               },
             },
           ]),
