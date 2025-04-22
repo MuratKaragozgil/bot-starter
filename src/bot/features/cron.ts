@@ -92,14 +92,9 @@ function saveInventory(inventory: StoredInventory) {
   }
 }
 
-function findChanges(
-  oldVehicles: TeslaInventoryResponse['results'],
-  newVehicles: TeslaInventoryResponse['results'],
-) {
+function findChanges(oldVehicles: TeslaInventoryResponse['results'], newVehicles: TeslaInventoryResponse['results']) {
   try {
-    logger.info(
-      `Comparing vehicles - Old: ${oldVehicles.length}, New: ${newVehicles.length}`,
-    )
+    logger.info(`Comparing vehicles - Old: ${oldVehicles.length}, New: ${newVehicles.length}`)
 
     const changes = {
       newVehicles: [] as TeslaInventoryResponse['results'],
@@ -116,23 +111,24 @@ function findChanges(
 
     // Check each new vehicle
     newVehicles.forEach((vehicle) => {
-      if (vehicle.VIN) {
-        logger.info(`Checking new vehicle VIN: ${vehicle.VIN}`)
+      if (vehicle.VIN && vehicle.InventoryPrice < 2500000) {
+        logger.info(`Checking new vehicle VIN: ${vehicle.VIN} with price: ${vehicle.InventoryPrice}`)
 
         if (!existingVINs.has(vehicle.VIN)) {
-          logger.info(`New vehicle found with VIN: ${vehicle.VIN}`)
-          logger.info(
-            `New vehicle details: ${vehicle.TrimName} - ${vehicle.PAINT?.[0]} - ${vehicle.INTERIOR?.[0]} - ${vehicle.WHEELS?.[0]}`,
-          )
+          logger.info(`New affordable vehicle found with VIN: ${vehicle.VIN}`)
+          logger.info(`New vehicle details: ${vehicle.TrimName} - ${vehicle.PAINT?.[0]} - ${vehicle.INTERIOR?.[0]} - ${vehicle.WHEELS?.[0]}`)
           changes.newVehicles.push(vehicle)
         }
+      }
+      else if (vehicle.VIN) {
+        logger.info(`Skipping expensive vehicle with VIN: ${vehicle.VIN} and price: ${vehicle.InventoryPrice}`)
       }
       else {
         logger.warn(`Vehicle found without VIN: ${vehicle.TrimName}`)
       }
     })
 
-    logger.info(`Changes found: ${changes.newVehicles.length} new vehicles`)
+    logger.info(`Changes found: ${changes.newVehicles.length} new affordable vehicles`)
     return changes
   }
   catch (error) {
@@ -182,9 +178,7 @@ export function setupCronJob(bot: Bot<Context>) {
     // Prevent multiple instances from running simultaneously
     // and ensure at least 4 minutes have passed since last run
     if (isJobRunning || now - lastRunTime < 240000) {
-      logger.info(
-        'Previous job is still running or not enough time has passed, skipping this iteration',
-      )
+      logger.info('Previous job is still running or not enough time has passed, skipping this iteration')
       return
     }
 
@@ -201,23 +195,18 @@ export function setupCronJob(bot: Bot<Context>) {
         signal: controller.signal,
         agent: proxyAgent,
         headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
         },
       })
 
       if (!response.ok) {
         const errorText = await response.text()
-        logger.error(
-          `HTTP error! status: ${response.status}, response: ${errorText}`,
-        )
-        throw new Error(
-          `HTTP error! status: ${response.status}, response: ${errorText}`,
-        )
+        logger.error(`HTTP error! status: ${response.status}, response: ${errorText}`)
+        throw new Error(`HTTP error! status: ${response.status}, response: ${errorText}`)
       }
 
       logger.info('Parsing Tesla inventory data...')
-      const data = (await response.json()) as TeslaInventoryResponse
+      const data = await response.json() as TeslaInventoryResponse
 
       if (!data || !data.results) {
         logger.error('Invalid response format:', data)
@@ -255,28 +244,23 @@ export function setupCronJob(bot: Bot<Context>) {
       if (!storedInventory) {
         // First run, just save the inventory
         logger.info('First run detected, saving initial inventory')
-        await bot.api.sendMessage(
-          ADMIN_ID,
-          '📊 İlk envanter kontrolü tamamlandı. Değişiklikler bundan sonra takip edilecek.',
-        )
+        await bot.api.sendMessage(ADMIN_ID, '📊 İlk envanter kontrolü tamamlandı. Değişiklikler bundan sonra takip edilecek.')
         return
       }
 
       const changes = findChanges(storedInventory.vehicles, data.results)
 
       if (changes.newVehicles.length === 0) {
-        logger.info('No changes found in inventory')
+        logger.info('No affordable changes found in inventory')
         return
       }
 
-      logger.info(
-        `Found ${changes.newVehicles.length} new vehicles, preparing notification...`,
-      )
+      logger.info(`Found ${changes.newVehicles.length} new affordable vehicles, preparing notification...`)
 
-      let message = `🔄 Tesla Model Y Envanter Güncellemesi (${new Date().toLocaleTimeString('tr-TR')}):\n\n`
+      let message = `🔥 UYGUN FİYATLI Tesla Model Y Güncellemesi (${new Date().toLocaleTimeString('tr-TR')}):\n\n`
 
       if (changes.newVehicles.length > 0) {
-        message += `🚗 Yeni Araçlar:\n\n`
+        message += `🚗 2.5 Milyon TL Altındaki Yeni Araçlar:\n\n`
         changes.newVehicles.forEach((vehicle) => {
           try {
             message += `${formatVehicleMessage(vehicle)}\n`
@@ -288,7 +272,7 @@ export function setupCronJob(bot: Bot<Context>) {
         })
       }
 
-      // Sadece admin'e değil, tüm üyelere bildirim gönder
+      // Sadece uygun fiyatlı araçlar için bildirim gönder
       await sendRateLimitedMessage(bot, message, {
         parse_mode: 'HTML',
         link_preview_options: {
