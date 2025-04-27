@@ -171,8 +171,8 @@ function formatVehicleMessage(vehicle: TeslaInventoryResponse['results'][0]) {
 }
 
 export function setupCronJob(bot: Bot<Context>) {
-  // Run every 10 seconds
-  cronJob = cron.schedule('*/10 * * * * *', async () => {
+  // Run every minute
+  cronJob = cron.schedule('* * * * *', async () => {
     const now = Date.now()
 
     // Prevent multiple instances from running simultaneously
