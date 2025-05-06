@@ -38,8 +38,29 @@ interface StoredInventory {
   total_matches_found: string
 }
 
-const TESLA_API_URL
-  = 'https://www.tesla.com/inventory/api/v4/inventory-results?query=%7B%22query%22%3A%7B%22model%22%3A%22my%22%2C%22condition%22%3A%22new%22%2C%22options%22%3A%7B%7D%2C%22arrangeby%22%3A%22Price%22%2C%22order%22%3A%22asc%22%2C%22market%22%3A%22TR%22%2C%22language%22%3A%22tr%22%2C%22super_region%22%3A%22north%20america%22%2C%22lng%22%3A28.9601%2C%22lat%22%3A41.03%2C%22zip%22%3A%2234080%22%2C%22range%22%3A0%2C%22region%22%3A%22TR%22%7D%2C%22offset%22%3A0%2C%22count%22%3A24%2C%22outsideOffset%22%3A0%2C%22outsideSearch%22%3Afalse%2C%22isFalconDeliverySelectionEnabled%22%3Atrue%2C%22version%22%3A%22v2%22%7D'
+const TESLA_API_URL = 'https://www.tesla.com/tr_TR/inventory/api/v4/inventory-results?query=' + encodeURIComponent(JSON.stringify({
+  query: {
+    model: 'my',
+    condition: 'new',
+    options: {},
+    arrangeby: 'Price',
+    order: 'asc',
+    market: 'TR',
+    language: 'tr',
+    super_region: 'europe',
+    lng: 28.9784,
+    lat: 41.0082,
+    zip: '34384',
+    range: 0,
+    region: 'TR',
+  },
+  offset: 0,
+  count: 24,
+  outsideOffset: 0,
+  outsideSearch: false,
+  isFalconDeliverySelectionEnabled: true,
+  version: 'v2',
+}))
 
 const ADMIN_ID = 740651254 // Your Telegram ID
 const INVENTORY_FILE = path.join(process.cwd(), 'inventory.json')
@@ -195,7 +216,19 @@ export function setupCronJob(bot: Bot<Context>) {
         signal: controller.signal,
         agent: proxyAgent,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'accept': 'application/json',
+          'accept-language': 'tr-TR,tr;q=0.9,en-US;q=0.8,en;q=0.7',
+          'cache-control': 'no-cache',
+          'pragma': 'no-cache',
+          'referer': 'https://www.tesla.com/tr_TR/inventory/new/my',
+          'sec-ch-ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+          'sec-ch-ua-mobile': '?0',
+          'sec-ch-ua-platform': '"macOS"',
+          'sec-fetch-dest': 'empty',
+          'sec-fetch-mode': 'cors',
+          'sec-fetch-site': 'same-origin',
+          'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+          'x-requested-with': 'XMLHttpRequest'
         },
       })
 
